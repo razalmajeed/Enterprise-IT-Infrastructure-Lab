@@ -26,8 +26,14 @@ A home-based SOC simulation built to experience real-world attack detection usin
 - Sysmon revealed true binary name TRAPFALL.exe despite attacker renaming it
 - ISO bypasses Windows Mark-of-the-Web SmartScreen protection
 
-index=main source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1 Image="E:\*"
+## 🔍 Detection
+
+Behavioral SPL query in Splunk — catches any EXE running from a mounted ISO drive:
+
+```
+index=main source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1 Image="E:\\*"
 | table _time, host, User, ParentImage, Image, CommandLine
+```
 
 Automated scheduled alert fired with Critical severity — confirmed in Triggered Alerts.
 
@@ -50,7 +56,3 @@ Splunk Enterprise, Sysmon64, VMware Workstation Pro, Active Directory, Hydra, xF
 ## 📄 Full Report
 
 Full lab report with screenshots and findings is available in this repo.
-
-## 🔍 Detection
-
-Behavioral SPL query in Splunk — catches any EXE running from a mounted ISO drive:
