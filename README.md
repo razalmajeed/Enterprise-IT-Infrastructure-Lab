@@ -1,69 +1,84 @@
-🛡️ Enterprise IT Infrastructure & Security Home Lab
-A home-based SOC simulation built to experience real-world attack detection using Splunk SIEM, Sysmon, and Active Directory. Simulated live attacks, built automated detection rules, and mapped all findings to MITRE ATT&CK.
+🖥️ Enterprise IT Infrastructure Lab
 
-🖥️ Lab Environment
+A home-based enterprise IT environment built to practice real-world IT support and infrastructure administration tasks — Active Directory, account/identity management, security policy configuration, and endpoint monitoring — across a 4-VM Windows/Linux network.
+
+## 🛠️ Lab Environment
+
 4 virtual machines on VMware Workstation Pro — isolated NAT network replicating an enterprise environment.
-VMRoleIP AddressWindows Server 2022Domain Controller (soc.local)192.168.50.129Windows 11 (sales)Victim / End-user Machine192.168.50.128Ubuntu 64-bitSplunk SIEM Server192.168.50.127Kali LinuxAttack Machine192.168.50.131
-Domain: soc.local  |  Subnet: 192.168.50.0/24  |  Platform: VMware Workstation Pro
 
-⚔️ Attacks Simulated
-1. RDP Brute Force
+| VM Role | OS | IP Address |
+|---|---|---|
+| Domain Controller | Windows Server 2022 | 192.168.50.129 |
+| End-User Workstation | Windows 11 | 192.168.50.128 |
+| SIEM Server | Ubuntu 64-bit (Splunk) | 192.168.50.127 |
+| Security Tools Machine | Kali Linux | 192.168.50.131 |
 
-Used Hydra and xFreeRDP from Kali to brute force domain accounts
-Generated 1,853 failed login events (EventCode 4625)
-Triggered account lockout (EventCode 4740) after exceeding threshold
-Captured new admin account creation via RDP session (EventCode 4720)
-Verified successful login (EventCode 4624) after credentials obtained
+Domain: `soc.local`  |  Subnet: `192.168.50.0/24`  |  Platform: VMware Workstation Pro
 
-2. Phishing with Live Malware
+> Note: the domain name `soc.local` is a holdover from the lab's original scope and isn't a reflection of the project's current focus on general IT infrastructure.
 
-Delivered real malware inside an .iso file attachment via Thunderbird email
-ISO mounted as DVD Drive E:\ — bypassing Windows Mark-of-the-Web (MOTW) SmartScreen protection
-61 out of 72 VirusTotal vendors flagged the payload as malicious
-Malware classified as: Trojan.Agent.EJZZ / Backdoor:Win32/Injector
-Sysmon revealed true binary name TRAPFALL.exe despite attacker renaming it
-SHA256: F74D3364EF9D3E3DF4173A7F12D48348AF44BF150C0FFCD01F0054E86EBB7E0E
+## 🗂️ Identity & Access Management
 
+- Created and configured the Active Directory domain on Windows Server 2022.
+- Built Organizational Units (OUs) by department — **Sales** and **Accounting** — and created a domain user account in each, mirroring how a real organization segments staff for permissions and policy.
+- Joined a Windows 11 workstation to the domain and tested sign-in with department-specific accounts.
+- Enabled **audit policy logging** on the domain controller to track authentication and account events.
+- Configured **account lockout policy** (lockout threshold and duration) as a security baseline — this policy is what later triggered Event Code 4740 during brute-force testing (see Security Monitoring below), directly tying policy configuration to real detection results.
 
-🔍 Detection Engineering
-Behavioral SPL Detection Query
-Catches any EXE executing from a mounted ISO drive — works regardless of filename or hash:
-splindex=main source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1 Image="E:\\*"
+## 📋 Planned Additions (in progress)
+
+The following are scoped as next steps to round out the lab as a full IT operations environment:
+
+- [ ] Shared folder with NTFS/share permissions scoped to department OUs (e.g. Sales folder accessible only to Sales account)
+- [ ] Printer deployment via Group Policy to a specific OU
+- [ ] DNS/DHCP troubleshooting writeup (real incident encountered while running static IP configuration)
+- [ ] Simulated helpdesk ticket log mapping common support requests (onboarding, lockouts, connectivity issues) to actions taken in this lab
+
+## 🔍 Security Monitoring
+
+The lab also includes a monitoring and detection layer, used to validate that the account lockout policy and audit settings above actually produce visible, actionable signal — and to practice log-based troubleshooting and threat analysis.
+
+**Tools:** Splunk Enterprise 9.3.1, Sysmon64, Splunk Universal Forwarder, TA-Windows, TA-Sysmon
+
+**Scenarios tested:**
+
+1. **RDP brute-force / account lockout monitoring** — Simulated failed login attempts against domain accounts to validate the account lockout policy above. Generated and analyzed Event Codes 4625 (failed logon), 4740 (account lockout), 4720 (account creation), and 4624 (successful logon) in Splunk. Built a 4-panel dashboard (failed logins over time, top source IP, targeted accounts, attack chain summary) to visualize the full event sequence — directly useful for triaging real user lockout tickets.
+
+2. **Malware execution detection (phishing simulation)** — Tested delivery of a malicious payload via a mounted ISO attachment, which bypasses Windows Mark-of-the-Web (MOTW) protection. Used Sysmon (Event ID 1) to detect process execution from the mounted drive regardless of filename, since the file had been renamed by the attacker. Verified detection end-to-end with VirusTotal classification and a scheduled Splunk alert.
+
+**Detection query used (Splunk SPL):**
+```
+index=main source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1 Image="E:\\*"
 | table _time, host, User, ParentImage, Image, CommandLine
-Automated Alerts
-AlertSeverityTriggerSuspicious Execution (Phishing Indicator)CriticalEXE running from mounted ISO driveRDP Brute Force MonitorHighMultiple failed logins from single IP
+```
 
-Alerts run on a scheduled basis every hour — SOC best practice for resource efficiency
-Phishing alert auto-fired at 04:15:00 on 30/05/2026 — verified end-to-end in Triggered Alerts
+**MITRE ATT&CK mapping:**
 
-Dashboard — RDP Brute Force Monitor
-Built a custom Splunk dashboard with 4 panels:
+| Technique ID | Technique | Tactic | Event ID |
+|---|---|---|---|
+| T1110.001 | Password Guessing (Brute Force) | Credential Access | 4625 |
+| T1078 | Valid Accounts | Persistence | 4624 |
+| T1136.001 | Local Account Creation | Persistence | 4720 |
+| T1531 | Account Access Removal (Lockout) | Impact | 4740 |
+| T1566.001 | Spearphishing Attachment | Initial Access | — |
+| T1553.005 | Mark-of-the-Web Bypass | Defense Evasion | Sysmon EID 1 |
+| T1204.002 | Malicious File Execution | Execution | Sysmon EID 1 |
 
-Failed Logins Over Time — attack spike visualized (May 21, ~2,000 attempts)
-Top Attacking IP — confirmed Kali (192.168.50.131) as attacker
-Targeted Accounts — shows which domain accounts were most targeted
-Attack Chain Summary — EventCodes 4624, 4625, 4720, 4740 visualized together
+## 🧰 Tools & Technologies
 
+| Category | Tools |
+|---|---|
+| Identity & Access | Active Directory, Group Policy (GPO), DNS, Audit Policy |
+| Virtualization | VMware Workstation Pro |
+| Operating Systems | Windows Server 2022, Windows 11, Ubuntu, Kali Linux |
+| SIEM / Logging | Splunk Enterprise, Sysmon64, Windows Event Logs |
+| Threat Intelligence | VirusTotal |
 
-🗺️ MITRE ATT&CK Coverage
-Technique IDTechniqueTacticEvent IDT1566.001Spearphishing AttachmentInitial Access—T1553.005Mark-of-the-Web BypassDefense EvasionSysmon EID 1T1204.002Malicious File ExecutionExecutionSysmon EID 1T1110.001Password Guessing (Brute Force)Credential Access4625T1078Valid AccountsPersistence4624T1136.001Local Account CreationPersistence4720T1531Account Access Removal (Lockout)Impact4740
+## 📄 Full Lab Report
 
-🛠️ Tools & Technologies
-CategoryToolsSIEMSplunk Enterprise 9.3.1Endpoint LoggingSysmon64, Windows Event LogsLog ForwardingSplunk Universal Forwarder, TA-Windows, TA-SysmonAttack ToolsHydra, xFreeRDP, Kali LinuxIdentity & AccessActive Directory, Group Policy (GPO), DNSThreat IntelligenceVirusTotalVirtualizationVMware Workstation ProOperating SystemsWindows Server 2022, Windows 11, Ubuntu, Kali Linux
+A full lab report with screenshots and technical findings is available in this repository.
 
-💡 Key Findings
-Behavioral detection beats signature detection
-The phishing SPL query targets any EXE running from a mounted virtual drive — not a specific filename or hash. Even after the attacker renamed the malware, the detection still fired because the behavior stayed the same.
-ISO files bypass Windows SmartScreen (MOTW)
-Files inside ISO containers bypass Mark-of-the-Web protection. Sysmon-based detection catches execution at the process level instead — making it a reliable alternative.
-Sysmon reveals what Windows Event Logs miss
-Default Event Logs miss critical details. Sysmon captures parent process, command line, original filename, hash, and user — giving a complete forensic picture on every process creation.
-Automated alerts = 24/7 SOC coverage
-Scheduled alerts mean the environment watches itself without manual searching. The phishing alert fired automatically with Critical severity — confirming the full detection pipeline works end-to-end.
+---
 
-📄 Full Lab Report
-Full lab report with screenshots and technical findings is available in this repository.
-
-👤 
-Mohammed Razal
-linkedin.com/in/mohammed-razal-cyber | razalmajeed0609@gmail.com
+**Mohammed Razal**
+linkedin.com/in/razal-majeed | razalmajeed0609@gmail.com
