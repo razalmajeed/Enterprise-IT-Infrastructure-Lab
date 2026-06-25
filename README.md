@@ -22,17 +22,25 @@ Domain: `soc.local`  |  Subnet: `192.168.50.0/24`  |  Platform: VMware Workstati
 - Created and configured the Active Directory domain on Windows Server 2022.
 - Built Organizational Units (OUs) by department — **Sales** and **Accounting** — and created a domain user account in each, mirroring how a real organization segments staff for permissions and policy.
 - Joined a Windows 11 workstation to the domain and tested sign-in with department-specific accounts.
+- Provisioned new accounts with a standard default password, enforcing "must change password at next logon," and handled account unlock requests after lockout — mirroring real new-hire onboarding and helpdesk workflows.
 - Enabled **audit policy logging** on the domain controller to track authentication and account events.
 - Configured **account lockout policy** (lockout threshold and duration) as a security baseline — this policy is what later triggered Event Code 4740 during brute-force testing (see Security Monitoring below), directly tying policy configuration to real detection results.
 
-## 📋 Planned Additions (in progress)
+## 📋 Roadmap
 
-The following are scoped as next steps to round out the lab as a full IT operations environment:
+Planned next steps, prioritized by relevance to real-world IT support work:
 
+**In progress now:**
 - [ ] Shared folder with NTFS/share permissions scoped to department OUs (e.g. Sales folder accessible only to Sales account)
-- [ ] Printer deployment via Group Policy to a specific OU
-- [ ] DNS/DHCP troubleshooting writeup (real incident encountered while running static IP configuration)
-- [ ] Simulated helpdesk ticket log mapping common support requests (onboarding, lockouts, connectivity issues) to actions taken in this lab
+- [ ] DHCP server role, scope configuration, and a documented break-fix scenario (scope exhaustion → APIPA address → diagnosis → fix)
+- [ ] Simulated helpdesk ticket log mapping common support requests (onboarding, lockouts, connectivity, printing) to actions taken in this lab
+- [ ] Printer deployment via Group Policy, scoped to a specific OU
+
+**Planned this week:**
+- [ ] Login script / mapped network drive via Group Policy
+- [ ] Windows Deployment Services (WDS) — basic OS imaging workflow for new-machine setup
+- [ ] WSUS — patch approval and deployment to a client
+- [ ] Windows Server Backup — scheduled backup of shared folder with a tested restore
 
 ## 🔍 Security Monitoring
 
